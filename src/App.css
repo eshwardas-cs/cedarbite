@@ -388,3 +388,45 @@ footer {
     gap: 8px;
   }
 }
+
+.pickup-slot-field {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #e0e5eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.pickup-slot-field label {
+  display: block;
+  margin-bottom: 8px;
+  color: #102b4c;
+  font-weight: 750;
+}
+
+.pickup-slot-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #102b4c;
+}
+
+.pickup-slot-field select:focus-visible {
+  outline: 3px solid #e5ae00;
+  outline-offset: 2px;
+}
+
+.no-pickup-slots,
+.selected-pickup-slot {
+  margin: 8px 0 0;
+  color: #687789;
+  line-height: 1.5;
+}
+
+.selected-pickup-slot {
+  color: #237346;
+  font-weight: 700;
+}

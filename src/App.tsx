@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { menuItems } from "./data/menu";
+import { getUpcomingPickupSlots } from "./data/pickupSlots";
 import type { OrderMode } from "./types";
 import "./App.css";
+
+const fullPickupSlotIds: ReadonlySet<string> = new Set();
 
 function formatPrice(pricePaisa: number): string {
   const rupees = pricePaisa / 100;
@@ -12,6 +15,31 @@ function App() {
   const [orderMode, setOrderMode] = useState<OrderMode>("quick");
   const [bucket, setBucket] = useState<Record<string, number>>({});
   const [bucketIsOpen, setBucketIsOpen] = useState(false);
+  const [pickupSlotId, setPickupSlotId] = useState("");
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30_000);
+
+    return () => window.clearInterval(timerId);
+  }, []);
+
+  const pickupSlots = useMemo(
+    () => getUpcomingPickupSlots(currentTime, fullPickupSlotIds),
+    [currentTime],
+  );
+
+  useEffect(() => {
+    const selectedSlotStillAvailable = pickupSlots.some(
+      (slot) => slot.id === pickupSlotId,
+    );
+
+    if (pickupSlotId && !selectedSlotStillAvailable) {
+      setPickupSlotId("");
+    }
+  }, [pickupSlotId, pickupSlots]);
 
   const visibleItems = menuItems.filter((item) => {
     const allowedForMode =
@@ -110,7 +138,10 @@ function App() {
           <button
             type="button"
             aria-pressed={orderMode === "quick"}
-            onClick={() => setOrderMode("quick")}
+            onClick={() => {
+              setOrderMode("quick");
+              setPickupSlotId("");
+            }}
           >
             Quick Order
           </button>
@@ -127,7 +158,7 @@ function App() {
         <p className="mode-help" aria-live="polite">
           {orderMode === "quick"
             ? "For ready-to-sell items. No pickup slot needed."
-            : "For prepared food. Pickup-time selection will be added in a later chunk."}
+            : "For prepared food. Choose a pickup window from your bucket."}
         </p>
       </section>
 
@@ -182,6 +213,7 @@ function App() {
               <p className="eyebrow">YOUR ORDER</p>
               <h2 id="bucket-heading">Your bucket</h2>
             </div>
+
             <button
               className="close-bucket-button"
               type="button"
@@ -201,9 +233,7 @@ function App() {
                   <li className="bucket-line" key={item.id}>
                     <div className="bucket-line-details">
                       <strong>{item.name}</strong>
-                      <span>
-                        {formatPrice(item.pricePaisa)} each
-                      </span>
+                      <span>{formatPrice(item.pricePaisa)} each</span>
                     </div>
 
                     <div className="bucket-line-actions">
@@ -244,12 +274,44 @@ function App() {
                 <span>Subtotal</span>
                 <strong>{formatPrice(bucketSubtotal)}</strong>
               </div>
-
-              <p className="bucket-note">
-                Checkout and payment will be added in a later chunk.
-              </p>
             </>
           )}
+
+          {orderMode === "scheduled" && (
+            <div className="pickup-slot-field">
+              <label htmlFor="pickup-slot">Pickup window</label>
+
+              {pickupSlots.length > 0 ? (
+                <select
+                  id="pickup-slot"
+                  value={pickupSlotId}
+                  onChange={(event) => setPickupSlotId(event.target.value)}
+                >
+                  <option value="">Choose a pickup time</option>
+                  {pickupSlots.map((slot) => (
+                    <option key={slot.id} value={slot.id}>
+                      {slot.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="no-pickup-slots" aria-live="polite">
+                  No pickup windows are available right now.
+                </p>
+              )}
+
+              {pickupSlotId && (
+                <p className="selected-pickup-slot" aria-live="polite">
+                  Selected:{" "}
+                  {pickupSlots.find((slot) => slot.id === pickupSlotId)?.label}
+                </p>
+              )}
+            </div>
+          )}
+
+          <p className="bucket-note">
+            Checkout and payment will be added in a later chunk.
+          </p>
         </section>
       )}
 
