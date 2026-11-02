@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { menuItems } from "./data/menu";
 import { getUpcomingPickupSlots } from "./data/pickupSlots";
 import type { OrderMode } from "./types";
+import { getOrderReviewError } from "./data/orderValidation";
 import "./App.css";
 
 const fullPickupSlotIds: ReadonlySet<string> = new Set();
@@ -17,6 +18,7 @@ function App() {
   const [bucketIsOpen, setBucketIsOpen] = useState(false);
   const [pickupSlotId, setPickupSlotId] = useState("");
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [reviewIsOpen, setReviewIsOpen] = useState(false);
 
   useEffect(() => {
     const timerId = window.setInterval(() => {
@@ -67,6 +69,11 @@ function App() {
     (total, line) => total + line.item.pricePaisa * line.quantity,
     0,
   );
+  const orderReviewError = getOrderReviewError({
+  itemCount: bucketCount,
+  orderMode,
+  pickupSlotId,
+});
 
   function addToBucket(itemId: string) {
     setBucket((currentBucket) => ({
@@ -308,6 +315,73 @@ function App() {
               )}
             </div>
           )}
+
+          {reviewIsOpen ? (
+  <section className="order-review" aria-labelledby="order-review-heading">
+    <h3 id="order-review-heading">Review your order</h3>
+
+    <p>
+      Order type:{" "}
+      <strong>
+        {orderMode === "quick" ? "Quick Order" : "Scheduled Order"}
+      </strong>
+    </p>
+
+    {orderMode === "scheduled" && (
+      <p>
+        Pickup window:{" "}
+        <strong>
+          {pickupSlots.find((slot) => slot.id === pickupSlotId)?.label}
+        </strong>
+      </p>
+    )}
+
+    <ul className="review-order-items">
+      {bucketLines.map(({ item, quantity }) => (
+        <li key={item.id}>
+          <span>
+            {item.name} × {quantity}
+          </span>
+          <strong>{formatPrice(item.pricePaisa * quantity)}</strong>
+        </li>
+      ))}
+    </ul>
+
+    <div className="review-order-total">
+      <span>Subtotal</span>
+      <strong>{formatPrice(bucketSubtotal)}</strong>
+    </div>
+
+    <button
+      className="review-button review-button-secondary"
+      type="button"
+      onClick={() => setReviewIsOpen(false)}
+    >
+      Back to bucket
+    </button>
+
+    <p className="review-disclaimer">
+      This is an order review. It does not submit an order or take payment.
+    </p>
+  </section>
+) : (
+  <div className="review-actions">
+    <button
+      className="review-button"
+      type="button"
+      disabled={Boolean(orderReviewError)}
+      onClick={() => setReviewIsOpen(true)}
+    >
+      Review order
+    </button>
+
+    {orderReviewError && (
+      <p className="review-error" aria-live="polite">
+        {orderReviewError}
+      </p>
+    )}
+  </div>
+)}
 
           <p className="bucket-note">
             Checkout and payment will be added in a later chunk.
