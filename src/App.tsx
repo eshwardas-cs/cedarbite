@@ -5,13 +5,13 @@ import "./App.css";
 
 function formatPrice(pricePaisa: number): string {
   const rupees = pricePaisa / 100;
-
   return `Rs ${rupees.toLocaleString("en-PK")}`;
 }
 
 function App() {
   const [orderMode, setOrderMode] = useState<OrderMode>("quick");
   const [bucket, setBucket] = useState<Record<string, number>>({});
+  const [bucketIsOpen, setBucketIsOpen] = useState(false);
 
   const visibleItems = menuItems.filter((item) => {
     const allowedForMode =
@@ -20,8 +20,23 @@ function App() {
     return item.available && allowedForMode;
   });
 
-  const bucketCount = Object.values(bucket).reduce(
-    (total, quantity) => total + quantity,
+  const bucketLines = Object.entries(bucket)
+    .map(([itemId, quantity]) => ({
+      item: menuItems.find((menuItem) => menuItem.id === itemId),
+      quantity,
+    }))
+    .filter(
+      (line): line is { item: (typeof menuItems)[number]; quantity: number } =>
+        line.item !== undefined,
+    );
+
+  const bucketCount = bucketLines.reduce(
+    (total, line) => total + line.quantity,
+    0,
+  );
+
+  const bucketSubtotal = bucketLines.reduce(
+    (total, line) => total + line.item.pricePaisa * line.quantity,
     0,
   );
 
@@ -30,6 +45,31 @@ function App() {
       ...currentBucket,
       [itemId]: (currentBucket[itemId] ?? 0) + 1,
     }));
+  }
+
+  function decreaseQuantity(itemId: string) {
+    setBucket((currentBucket) => {
+      const currentQuantity = currentBucket[itemId] ?? 0;
+
+      if (currentQuantity <= 1) {
+        const updatedBucket = { ...currentBucket };
+        delete updatedBucket[itemId];
+        return updatedBucket;
+      }
+
+      return {
+        ...currentBucket,
+        [itemId]: currentQuantity - 1,
+      };
+    });
+  }
+
+  function removeFromBucket(itemId: string) {
+    setBucket((currentBucket) => {
+      const updatedBucket = { ...currentBucket };
+      delete updatedBucket[itemId];
+      return updatedBucket;
+    });
   }
 
   return (
@@ -44,7 +84,13 @@ function App() {
           <a href="#about">About</a>
         </nav>
 
-        <button className="bucket-button" type="button">
+        <button
+          className="bucket-button"
+          type="button"
+          aria-expanded={bucketIsOpen}
+          aria-controls="bucket-panel"
+          onClick={() => setBucketIsOpen((isOpen) => !isOpen)}
+        >
           Bucket <span>{bucketCount}</span>
         </button>
       </header>
@@ -81,7 +127,7 @@ function App() {
         <p className="mode-help" aria-live="polite">
           {orderMode === "quick"
             ? "For ready-to-sell items. No pickup slot needed."
-            : "For prepared food. Choose an available pickup time in your bucket."}
+            : "For prepared food. Pickup-time selection will be added in a later chunk."}
         </p>
       </section>
 
@@ -89,12 +135,12 @@ function App() {
         <div className="section-heading">
           <div>
             <p className="eyebrow">THE CANTEEN MENU</p>
-            <h2>{orderMode === "quick" ? "Ready to collect" : "Prepared for pickup"}</h2>
+            <h2>
+              {orderMode === "quick" ? "Ready to collect" : "Prepared for pickup"}
+            </h2>
           </div>
 
-          <p aria-live="polite">
-            {visibleItems.length} items
-          </p>
+          <p aria-live="polite">{visibleItems.length} items</p>
         </div>
 
         <div className="menu-grid">
@@ -125,9 +171,89 @@ function App() {
         </div>
       </section>
 
-      <footer id="about">
-        CedarBite · A Cedar College student project
-      </footer>
+      {bucketIsOpen && (
+        <section
+          id="bucket-panel"
+          className="bucket-panel"
+          aria-labelledby="bucket-heading"
+        >
+          <div className="bucket-panel-header">
+            <div>
+              <p className="eyebrow">YOUR ORDER</p>
+              <h2 id="bucket-heading">Your bucket</h2>
+            </div>
+            <button
+              className="close-bucket-button"
+              type="button"
+              onClick={() => setBucketIsOpen(false)}
+              aria-label="Close bucket"
+            >
+              Close
+            </button>
+          </div>
+
+          {bucketLines.length === 0 ? (
+            <p className="empty-message">Your bucket is empty.</p>
+          ) : (
+            <>
+              <ul className="bucket-list">
+                {bucketLines.map(({ item, quantity }) => (
+                  <li className="bucket-line" key={item.id}>
+                    <div className="bucket-line-details">
+                      <strong>{item.name}</strong>
+                      <span>
+                        {formatPrice(item.pricePaisa)} each
+                      </span>
+                    </div>
+
+                    <div className="bucket-line-actions">
+                      <div
+                        className="quantity-controls"
+                        aria-label={`Quantity for ${item.name}`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => decreaseQuantity(item.id)}
+                          aria-label={`Decrease ${item.name} quantity`}
+                        >
+                          −
+                        </button>
+                        <span>{quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => addToBucket(item.id)}
+                          aria-label={`Increase ${item.name} quantity`}
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <button
+                        className="remove-item-button"
+                        type="button"
+                        onClick={() => removeFromBucket(item.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="bucket-total">
+                <span>Subtotal</span>
+                <strong>{formatPrice(bucketSubtotal)}</strong>
+              </div>
+
+              <p className="bucket-note">
+                Checkout and payment will be added in a later chunk.
+              </p>
+            </>
+          )}
+        </section>
+      )}
+
+      <footer id="about">CedarBite · A Cedar College student project</footer>
     </main>
   );
 }
