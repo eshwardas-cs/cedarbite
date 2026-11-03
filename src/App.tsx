@@ -3,6 +3,8 @@ import { menuItems } from "./data/menu";
 import { getUpcomingPickupSlots } from "./data/pickupSlots";
 import type { OrderMode } from "./types";
 import { getOrderReviewError } from "./data/orderValidation";
+import { loadBucket, saveBucket } from "./data/bucketStorage";
+import LocalSaveNote from "./components/LocalSaveNote";
 import "./App.css";
 
 const fullPickupSlotIds: ReadonlySet<string> = new Set();
@@ -14,11 +16,16 @@ function formatPrice(pricePaisa: number): string {
 
 function App() {
   const [orderMode, setOrderMode] = useState<OrderMode>("quick");
-  const [bucket, setBucket] = useState<Record<string, number>>({});
+const [bucket, setBucket] = useState<Record<string, number>>(loadBucket);
+const [bucketSaved, setBucketSaved] = useState<boolean | null>(null);
   const [bucketIsOpen, setBucketIsOpen] = useState(false);
   const [pickupSlotId, setPickupSlotId] = useState("");
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [reviewIsOpen, setReviewIsOpen] = useState(false);
+
+  useEffect(() => {
+    setBucketSaved(saveBucket(bucket));
+  }, [bucket]);
 
   useEffect(() => {
     const timerId = window.setInterval(() => {
@@ -42,6 +49,12 @@ function App() {
       setPickupSlotId("");
     }
   }, [pickupSlotId, pickupSlots]);
+
+  useEffect(() => {
+  setBucketSaved(saveBucket(bucket));
+}, [bucket]);
+
+<LocalSaveNote saved={bucketSaved} />
 
   const visibleItems = menuItems.filter((item) => {
     const allowedForMode =

@@ -1,0 +1,13 @@
+.local-save-note {
+  margin: 16px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.local-save-note.is-saved {
+  color: #237346;
+}
+
+.local-save-note.save-failed {
+  color: #a33a2b;
+}
