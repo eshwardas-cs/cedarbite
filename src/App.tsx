@@ -408,3 +408,123 @@ const [bucketSaved, setBucketSaved] = useState<boolean | null>(null);
 }
 
 export default App;
+
+```tsx
+import {
+  createOrderReceipt,
+  saveOrder,
+  type OrderReceipt,
+} from "./data/orderStorage";
+import OrderConfirmation from "./components/OrderConfirmation";
+```
+
+Add state beside the other state declarations:
+
+```tsx
+const [completedOrder, setCompletedOrder] = useState<OrderReceipt | null>(
+  null,
+);
+const [orderSaveError, setOrderSaveError] = useState("");
+```
+
+Add this function before the component’s main `return`:
+
+```tsx
+function placeSampleOrder() {
+  const validationError = getOrderReviewError({
+    itemCount: bucketCount,
+    orderMode,
+    pickupSlotId,
+  });
+
+  if (validationError) {
+    setOrderSaveError(validationError);
+    return;
+  }
+
+  const selectedSlot =
+    orderMode === "scheduled"
+      ? pickupSlots.find((slot) => slot.id === pickupSlotId)
+      : undefined;
+
+  if (orderMode === "scheduled" && !selectedSlot) {
+    setOrderSaveError("Choose an available pickup window before continuing.");
+    return;
+  }
+
+  let receipt: OrderReceipt;
+
+  try {
+    receipt = createOrderReceipt({
+      orderMode,
+      pickupWindow: selectedSlot?.label ?? null,
+      items: bucketLines.map(({ item, quantity }) => ({
+        itemId: item.id,
+        name: item.name,
+        pricePaisa: item.pricePaisa,
+        quantity,
+      })),
+      totalPaisa: bucketSubtotal,
+    });
+  } catch {
+    setOrderSaveError("Could not create the sample receipt. Please try again.");
+    return;
+  }
+
+  if (!saveOrder(receipt)) {
+    setOrderSaveError("Could not save the receipt in this browser.");
+    return;
+  }
+
+  setOrderSaveError("");
+  setCompletedOrder(receipt);
+  setBucket({});
+  setPickupSlotId("");
+  setReviewIsOpen(false);
+  setBucketIsOpen(false);
+}
+```
+
+Before the existing main `return`, add the confirmation-page branch:
+
+```tsx
+if (completedOrder) {
+  return (
+    <OrderConfirmation
+      receipt={completedOrder}
+      onReturn={() => {
+        setCompletedOrder(null);
+        setOrderMode("quick");
+        setPickupSlotId("");
+      }}
+    />
+  );
+}
+```
+
+Inside the `reviewIsOpen` section, after **Back to bucket**, add:
+
+```tsx
+<button
+  className="review-button"
+  type="button"
+  onClick={placeSampleOrder}
+>
+  Place sample order
+</button>
+
+{orderSaveError && (
+  <p className="review-error" aria-live="polite">
+    {orderSaveError}
+  </p>
+)}
+```
+
+Replace the existing review disclaimer with:
+
+```tsx
+<p className="review-disclaimer">
+  This saves a sample receipt in this browser only. It does not send an order
+  to the canteen or take payment.
+</p>
+```
