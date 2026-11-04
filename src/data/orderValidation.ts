@@ -1,3 +1,4 @@
+// adding order validation
 import type { OrderMode } from "../types";
 
 type OrderReviewDetails = {
